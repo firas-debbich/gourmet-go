@@ -56,11 +56,17 @@ public class SagaOrchestrator {
 
         // STEP 2: Create kitchen ticket
         System.out.println("[Saga] Step 2: Creating kitchen ticket");
-        var ticketResponse = kitchenStub.createTicket(
-                TicketRequest.newBuilder().setOrderId(orderId).build());
+        boolean ticketCreated = false;
+        try {
+            var ticketResponse = kitchenStub.createTicket(
+                    TicketRequest.newBuilder().setOrderId(orderId).build());
+            ticketCreated = ticketResponse.getSuccess();
+        } catch (Exception e) {
+            System.out.println("[Saga] Kitchen ticket FAILED with exception: " + e.getMessage());
+        }
 
-        if (!ticketResponse.getSuccess()) {
-            System.out.println("[Saga] Kitchen ticket FAILED");
+        if (!ticketCreated) {
+            System.out.println("[Saga] Kitchen ticket FAILED -> REJECTED");
             orderStub.updateStatus(UpdateStatusRequest.newBuilder()
                     .setOrderId(orderId).setStatus("REJECTED").build());
             return new SagaResult(orderId, "REJECTED", "Kitchen ticket creation failed");
@@ -68,13 +74,19 @@ public class SagaOrchestrator {
 
         // STEP 3: Authorize payment
         System.out.println("[Saga] Step 3: Authorizing payment");
-        var authResponse = accountingStub.authorizeCard(
-                AuthorizeRequest.newBuilder()
-                        .setOrderId(orderId)
-                        .setAmount(amount)
-                        .build());
+        boolean authorized = false;
+        try {
+            var authResponse = accountingStub.authorizeCard(
+                    AuthorizeRequest.newBuilder()
+                            .setOrderId(orderId)
+                            .setAmount(amount)
+                            .build());
+            authorized = authResponse.getAuthorized();
+        } catch (Exception e) {
+            System.out.println("[Saga] Payment authorization FAILED with exception: " + e.getMessage());
+        }
 
-        if (authResponse.getAuthorized()) {
+        if (authorized) {
             // HAPPY PATH
             System.out.println("[Saga] Payment AUTHORIZED -> APPROVED");
             orderStub.updateStatus(UpdateStatusRequest.newBuilder()
@@ -85,10 +97,17 @@ public class SagaOrchestrator {
             // COMPENSATION PATH
             System.out.println("[Saga] Payment REJECTED -> running compensation...");
 
+            // Best-effort: reject the kitchen ticket; order must be finalized regardless
             System.out.println("[Saga] Compensation: RejectTicket");
-            kitchenStub.rejectTicket(
-                    RejectRequest.newBuilder().setOrderId(orderId).build());
+            try {
+                kitchenStub.rejectTicket(
+                        RejectRequest.newBuilder().setOrderId(orderId).build());
+            } catch (Exception e) {
+                System.err.println("[Saga] WARNING: rejectTicket compensation failed (non-fatal): "
+                        + e.getMessage());
+            }
 
+            // Always finalize the order — this must not be skipped
             System.out.println("[Saga] Compensation: Order -> REJECTED");
             orderStub.updateStatus(UpdateStatusRequest.newBuilder()
                     .setOrderId(orderId).setStatus("REJECTED").build());

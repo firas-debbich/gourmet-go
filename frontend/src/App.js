@@ -30,21 +30,25 @@ function App() {
       const res = await axios.post(`${API}/orders`, {
         orderId,
         amount: parseFloat(amount)
-      });
+      }, { timeout: 15000 });
       const data = res.data;
+      const isApproved = data.status === 'APPROVED';
       setMessage({
-        type: data.status === 'APPROVED' ? 'success' : 'error',
-        text: data.status === 'APPROVED'
+        type: isApproved ? 'success' : 'rejected',
+        text: isApproved
           ? `✅ Order ${data.orderId} APPROVED!`
           : `❌ Order ${data.orderId} REJECTED — ${data.message}`
       });
-      setOrderId('');
-      setAmount('');
       fetchOrders();
     } catch (err) {
-      setMessage({ type: 'error', text: '⚠️ Error: ' + err.message });
+      const text = err.code === 'ECONNABORTED'
+        ? '⏱ Request timed out — please try again.'
+        : `⚠️ Error: ${err.message}`;
+      setMessage({ type: 'error', text });
     } finally {
       setLoading(false);
+      setOrderId('');
+      setAmount('');
     }
   };
 
@@ -97,19 +101,30 @@ function App() {
               type="submit"
               style={{
                 ...styles.btn,
-                opacity: loading ? 0.6 : 1
+                opacity: loading ? 0.65 : 1,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                background: loading ? '#64748b' : '#2563eb',
               }}
               disabled={loading}
             >
-              {loading ? 'Processing Saga...' : 'Place Order'}
+              {loading ? '⏳ Processing Saga...' : 'Place Order'}
             </button>
           </form>
 
           {message && (
             <div style={{
               ...styles.message,
-              background: message.type === 'success' ? '#dcfce7' : '#fee2e2',
-              color:      message.type === 'success' ? '#15803d' : '#b91c1c',
+              background: message.type === 'success'  ? '#dcfce7'
+                        : message.type === 'rejected' ? '#fef3c7'
+                        : '#fee2e2',
+              color:      message.type === 'success'  ? '#15803d'
+                        : message.type === 'rejected' ? '#92400e'
+                        : '#b91c1c',
+              borderLeft: `4px solid ${
+                message.type === 'success'  ? '#16a34a'
+              : message.type === 'rejected' ? '#d97706'
+              : '#dc2626'
+              }`,
             }}>
               {message.text}
             </div>
