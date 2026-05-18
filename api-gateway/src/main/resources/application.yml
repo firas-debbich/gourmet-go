@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: api-gateway
+
+server:
+  port: 8080
+
+services:
+  orchestrator-url: http://${ORCHESTRATOR_HOST:localhost}:8084
+  order-service-url: http://${ORDER_SERVICE_HOST:localhost}:8081

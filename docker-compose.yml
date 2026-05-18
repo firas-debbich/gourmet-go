@@ -1,0 +1,134 @@
+version: '3.8'
+
+services:
+
+  # ─── DATABASES ──────────────────────────────────────────────────
+  orders-db:
+    image: postgres:15-alpine
+    container_name: orders-db
+    environment:
+      POSTGRES_DB: orders_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    networks:
+      - gourmet-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  kitchen-db:
+    image: postgres:15-alpine
+    container_name: kitchen-db
+    environment:
+      POSTGRES_DB: kitchen_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    networks:
+      - gourmet-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  accounting-db:
+    image: postgres:15-alpine
+    container_name: accounting-db
+    environment:
+      POSTGRES_DB: accounting_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    networks:
+      - gourmet-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ─── MICROSERVICES ───────────────────────────────────────────────
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    environment:
+      DB_HOST: orders-db
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_PORT: 5432
+    ports:
+      - "8081:8081"
+      - "50051:50051"
+    depends_on:
+      orders-db:
+        condition: service_healthy
+    networks:
+      - gourmet-net
+
+  kitchen-service:
+    build: ./kitchen-service
+    container_name: kitchen-service
+    environment:
+      DB_HOST: kitchen-db
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_PORT: 5432
+    ports:
+      - "8082:8082"
+      - "50052:50052"
+    depends_on:
+      kitchen-db:
+        condition: service_healthy
+    networks:
+      - gourmet-net
+
+  accounting-service:
+    build: ./accounting-service
+    container_name: accounting-service
+    environment:
+      DB_HOST: accounting-db
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_PORT: 5432
+    ports:
+      - "8083:8083"
+      - "50053:50053"
+    depends_on:
+      accounting-db:
+        condition: service_healthy
+    networks:
+      - gourmet-net
+
+  order-orchestrator:
+    build: ./order-orchestrator
+    container_name: order-orchestrator
+    environment:
+      ORDER_SERVICE_HOST: order-service
+      KITCHEN_SERVICE_HOST: kitchen-service
+      ACCOUNTING_SERVICE_HOST: accounting-service
+    ports:
+      - "8084:8084"
+    depends_on:
+      - order-service
+      - kitchen-service
+      - accounting-service
+    networks:
+      - gourmet-net
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    environment:
+      ORCHESTRATOR_HOST: order-orchestrator
+      ORDER_SERVICE_HOST: order-service
+    ports:
+      - "8088:8080"
+    depends_on:
+      - order-orchestrator
+    networks:
+      - gourmet-net
+
+networks:
+  gourmet-net:
+    driver: bridge

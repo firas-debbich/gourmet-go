@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+package com.gourmet.accounting;
+
+service AccountingService {
+  rpc AuthorizeCard(AuthorizeRequest) returns (AuthorizeResponse);
+}
+
+message AuthorizeRequest {
+  string orderId = 1;
+  double amount  = 2;
+}
+
+message AuthorizeResponse {
+  bool authorized = 1;
+}

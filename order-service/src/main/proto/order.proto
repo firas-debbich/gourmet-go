@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+package com.gourmet.order;
+
+service OrderService {
+  rpc UpdateStatus(UpdateStatusRequest) returns (UpdateStatusResponse);
+}
+
+message UpdateStatusRequest {
+  string orderId = 1;
+  string status  = 2;
+}
+
+message UpdateStatusResponse {
+  bool acknowledged = 1;
+}

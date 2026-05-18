@@ -1,0 +1,17 @@
+# Maven compiled files
+target/
+*.class
+*.jar
+
+# Node
+node_modules/
+frontend/build/
+
+# IDE
+.idea/
+*.iml
+*.save
+
+# Logs
+*.log
+/tmp/

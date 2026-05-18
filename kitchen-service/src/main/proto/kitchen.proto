@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+package com.gourmet.kitchen;
+
+service KitchenService {
+  rpc CreateTicket(TicketRequest) returns (TicketResponse);
+  rpc RejectTicket(RejectRequest) returns (RejectResponse);
+}
+
+message TicketRequest  { string orderId = 1; }
+message TicketResponse { bool success   = 1; }
+
+message RejectRequest  { string orderId     = 1; }
+message RejectResponse { bool acknowledged  = 1; }
